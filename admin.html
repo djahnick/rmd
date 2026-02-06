@@ -3,12 +3,42 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin (BO)</title>
+  <title>Admin (BO) — Ramadan</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <h1>BO — Admin</h1>
-  <p>Page admin locale OK ✅</p>
+
+  <section class="panel">
+    <h2>Connexion admin</h2>
+    <div class="row">
+      <input id="email" type="email" placeholder="Email" />
+      <input id="password" type="password" placeholder="Mot de passe" />
+      <button id="loginBtn">Se connecter</button>
+      <button id="logoutBtn" class="secondary hidden">Se déconnecter</button>
+    </div>
+    <p class="muted" id="authStatus">Non connecté</p>
+  </section>
+
+  <section class="panel">
+    <h2>Réglages calendrier</h2>
+    <div class="row">
+      <input id="calendarId" placeholder="calendarId (ex: ramadan-djahnick-2026)" />
+      <input id="startDate" type="date" />
+      <select id="daysCount">
+        <option value="29">29 jours</option>
+        <option value="30" selected>30 jours</option>
+      </select>
+      <button id="loadBtn" class="secondary">Charger</button>
+      <button id="saveBtn">Enregistrer</button>
+    </div>
+
+    <div class="row">
+      <button id="resetOpenedBtn" class="danger">Reset openedDays</button>
+    </div>
+
+    <p class="muted" id="saveStatus"></p>
+  </section>
 
   <script type="module" src="admin.js"></script>
 </body>
