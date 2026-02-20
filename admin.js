@@ -1,7 +1,6 @@
 import { auth, db } from "./firebase.js";
 import {
   signInWithEmailAndPassword,
-  signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 
@@ -9,122 +8,94 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc,
-  serverTimestamp
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
 
-const elEmail = document.getElementById("email");
-const elPassword = document.getElementById("password");
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const authStatus = document.getElementById("authStatus");
+const email = document.getElementById("email");
+const password = document.getElementById("password");
+const login = document.getElementById("login");
+const status = document.getElementById("status");
 
-const calendarIdEl = document.getElementById("calendarId");
-const startDateEl = document.getElementById("startDate");
-const daysCountEl = document.getElementById("daysCount");
-const loadBtn = document.getElementById("loadBtn");
-const saveBtn = document.getElementById("saveBtn");
-const resetOpenedBtn = document.getElementById("resetOpenedBtn");
-const saveStatus = document.getElementById("saveStatus");
+const calendarId = document.getElementById("calendarId");
+const startDate = document.getElementById("startDate");
+const daysCount = document.getElementById("daysCount");
+const loadBtn = document.getElementById("load");
+const saveBtn = document.getElementById("save");
+const calStatus = document.getElementById("calStatus");
 
-function setStatus(msg) {
-  saveStatus.textContent = msg;
-}
+const json = document.getElementById("json");
+const saveJson = document.getElementById("saveJson");
+const exportJson = document.getElementById("exportJson");
+const jsonStatus = document.getElementById("jsonStatus");
 
-function getCalendarRef() {
-  const id = (calendarIdEl.value || "").trim();
-  if (!id) throw new Error("calendarId manquant (ex: ramadan-djahnick-2026)");
+function ref() {
+  const id = (calendarId.value || "").trim();
+  if (!id) throw new Error("calendarId manquant");
   return doc(db, "calendars", id);
 }
 
-loginBtn.addEventListener("click", async () => {
-  try {
-    await signInWithEmailAndPassword(auth, elEmail.value.trim(), elPassword.value);
-    setStatus("✅ Connecté.");
-  } catch (e) {
-    setStatus("❌ Login failed: " + (e?.message || e));
-  }
-});
-
-logoutBtn.addEventListener("click", async () => {
-  try {
-    await signOut(auth);
-    setStatus("Déconnecté.");
-  } catch (e) {
-    setStatus("❌ Logout failed: " + (e?.message || e));
-  }
-});
-
 onAuthStateChanged(auth, (user) => {
-  if (user) {
-    authStatus.textContent = `Connecté: ${user.email}`;
-    loginBtn.classList.add("hidden");
-    logoutBtn.classList.remove("hidden");
-  } else {
-    authStatus.textContent = "Non connecté";
-    loginBtn.classList.remove("hidden");
-    logoutBtn.classList.add("hidden");
-  }
+  status.textContent = user ? `Connecté: ${user.email}` : "Non connecté";
 });
 
-loadBtn.addEventListener("click", async () => {
+login.onclick = async () => {
+  await signInWithEmailAndPassword(auth, email.value.trim(), password.value);
+};
+
+loadBtn.onclick = async () => {
   try {
-    const ref = getCalendarRef();
-    const snap = await getDoc(ref);
-
-    if (!snap.exists()) {
-      setStatus("⚠️ Doc inexistant. Clique Enregistrer pour le créer.");
-      return;
-    }
-
+    const snap = await getDoc(ref());
+    if (!snap.exists()) { calStatus.textContent = "Doc introuvable (crée-le avec Enregistrer)."; return; }
     const data = snap.data();
-    startDateEl.value = data.startDate || "";
-    daysCountEl.value = String(data.daysCount || 30);
-    setStatus("✅ Chargé depuis Firestore.");
+    startDate.value = data.startDate || "";
+    daysCount.value = String(data.daysCount || 30);
+    calStatus.textContent = "Chargé.";
+    const dc = Array.isArray(data.daysContent) ? data.daysContent : [];
+    json.value = dc.length ? JSON.stringify(dc, null, 2) : "";
+    jsonStatus.textContent = dc.length ? `daysContent: ${dc.length} items` : "daysContent vide";
   } catch (e) {
-    setStatus("❌ Load failed: " + (e?.message || e));
+    calStatus.textContent = "Erreur: " + (e?.message || e);
   }
-});
+};
 
-saveBtn.addEventListener("click", async () => {
+saveBtn.onclick = async () => {
   try {
-    const ref = getCalendarRef();
-    const startDate = startDateEl.value;
-    const daysCount = Number(daysCountEl.value || 30);
+    const id = (calendarId.value || "").trim();
+    if (!id) throw new Error("calendarId manquant");
+    if (!startDate.value) throw new Error("startDate manquant");
+    const dc = Number(daysCount.value || 30);
+    if (![29,30].includes(dc)) throw new Error("daysCount doit être 29 ou 30");
 
-    if (!startDate) throw new Error("startDate manquant (choisis une date).");
-    if (![29, 30].includes(daysCount)) throw new Error("daysCount doit être 29 ou 30.");
-
-    const snap = await getDoc(ref);
-
-    if (!snap.exists()) {
-      await setDoc(ref, {
-        startDate,
-        daysCount,
-        openedDays: [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      setStatus("✅ Créé + enregistré.");
-    } else {
-      await updateDoc(ref, {
-        startDate,
-        daysCount,
-        updatedAt: serverTimestamp()
-      });
-      setStatus("✅ Enregistré (update).");
-    }
+    // MERGE => ne détruit pas daysContent
+    await setDoc(ref(), { startDate: startDate.value, daysCount: dc }, { merge: true });
+    calStatus.textContent = "✅ Enregistré (merge).";
   } catch (e) {
-    setStatus("❌ Save failed: " + (e?.message || e));
+    calStatus.textContent = "❌ " + (e?.message || e);
   }
-});
+};
 
-resetOpenedBtn.addEventListener("click", async () => {
+saveJson.onclick = async () => {
   try {
-    const ref = getCalendarRef();
-    await updateDoc(ref, { openedDays: [], updatedAt: serverTimestamp() });
-    setStatus("✅ openedDays reset.");
+    const raw = (json.value || "").trim();
+    if (!raw) throw new Error("JSON vide");
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) throw new Error("JSON doit être un tableau");
+    await updateDoc(ref(), { daysContent: arr });
+    jsonStatus.textContent = `✅ JSON enregistré (${arr.length} items).`;
   } catch (e) {
-    setStatus("❌ Reset failed: " + (e?.message || e));
+    jsonStatus.textContent = "❌ " + (e?.message || e);
   }
-});
+};
+
+exportJson.onclick = async () => {
+  try {
+    const snap = await getDoc(ref());
+    if (!snap.exists()) throw new Error("Doc introuvable");
+    const data = snap.data();
+    const dc = Array.isArray(data.daysContent) ? data.daysContent : [];
+    json.value = JSON.stringify(dc, null, 2);
+    jsonStatus.textContent = `✅ Exporté (${dc.length} items).`;
+  } catch (e) {
+    jsonStatus.textContent = "❌ " + (e?.message || e);
+  }
+};

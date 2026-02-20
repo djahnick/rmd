@@ -1,45 +1,48 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Admin (BO) — Ramadan</title>
-  <link rel="stylesheet" href="styles.css" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>BO Admin</title>
+<link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <h1>BO — Admin</h1>
 
-  <section class="panel">
-    <h2>Connexion admin</h2>
-    <div class="row">
-      <input id="email" type="email" placeholder="Email" />
-      <input id="password" type="password" placeholder="Mot de passe" />
-      <button id="loginBtn">Se connecter</button>
-      <button id="logoutBtn" class="secondary hidden">Se déconnecter</button>
-    </div>
-    <p class="muted" id="authStatus">Non connecté</p>
-  </section>
+<h1>BO — Calendrier</h1>
 
-  <section class="panel">
-    <h2>Réglages calendrier</h2>
-    <div class="row">
-      <input id="calendarId" placeholder="calendarId (ex: ramadan-djahnick-2026)" />
-      <input id="startDate" type="date" />
-      <select id="daysCount">
-        <option value="29">29 jours</option>
-        <option value="30" selected>30 jours</option>
-      </select>
-      <button id="loadBtn" class="secondary">Charger</button>
-      <button id="saveBtn">Enregistrer</button>
-    </div>
+<section class="panel">
+  <h2>Connexion</h2>
+  <input id="email" placeholder="email"/>
+  <input id="password" type="password" placeholder="password"/>
+  <button id="login">Login</button>
+  <span id="status">Non connecté</span>
+</section>
 
-    <div class="row">
-      <button id="resetOpenedBtn" class="danger">Reset openedDays</button>
-    </div>
+<section class="panel">
+  <h2>Calendrier</h2>
+  <div>
+    <input id="calendarId" placeholder="ex: ramadan-wife-1447"/>
+    <input id="startDate" type="date"/>
+    <select id="daysCount">
+      <option value="29">29</option>
+      <option value="30" selected>30</option>
+    </select>
+    <button id="load" class="secondary">Charger</button>
+    <button id="save">Enregistrer (merge)</button>
+  </div>
+  <p class="muted" id="calStatus"></p>
+</section>
 
-    <p class="muted" id="saveStatus"></p>
-  </section>
+<section class="panel">
+  <h2>JSON jours (daysContent)</h2>
+  <textarea id="json" rows="14" placeholder='[{"day":1,"verseText":"...","verseRef":"...","duaText":"...","goodDeedText":"..."}]'></textarea>
+  <div>
+    <button id="saveJson">Enregistrer JSON</button>
+    <button id="exportJson" class="secondary">Exporter JSON</button>
+  </div>
+  <p class="muted" id="jsonStatus"></p>
+</section>
 
-  <script type="module" src="admin.js"></script>
+<script type="module" src="admin.js"></script>
 </body>
 </html>

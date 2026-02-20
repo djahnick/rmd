@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Preview / Test Bench</title>
+<link rel="stylesheet" href="styles.css" />
+<style>
+  .topbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .chip{padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);font-size:12px}
+  .grid{display:grid;grid-template-columns:repeat(6,minmax(170px,1fr));gap:12px;margin-top:14px}
+  @media(max-width:1100px){.grid{grid-template-columns:repeat(4,minmax(170px,1fr))}}
+  @media(max-width:700px){.grid{grid-template-columns:repeat(2,minmax(170px,1fr))}}
+  .day{background:#334155;padding:12px;border-radius:10px;min-height:120px;display:flex;flex-direction:column;gap:10px}
+  .day h3{margin:0;font-size:16px}
+  .badgeRow{display:flex;gap:8px;flex-wrap:wrap}
+  .btnRow{margin-top:auto;display:flex;gap:8px}
+  .btn{padding:8px 10px;border-radius:8px;border:0;cursor:pointer}
+  .btn.primary{background:#1f6feb;color:white}
+  .btn.secondary{background:rgba(255,255,255,.12);color:white}
+  .btn.danger{background:#b42318;color:white}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* modal */
+  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  .modal.hidden{display:none}
+  .backdrop{position:absolute;inset:0;background:rgba(0,0,0,.6)}
+  .modalCard{position:relative;z-index:1;width:min(760px,92vw);background:#0b1220;border:1px solid rgba(255,255,255,.14);
+    border-radius:14px;padding:14px}
+  .close{position:absolute;right:10px;top:10px}
+  .block{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:12px;margin-top:10px}
+  .muted{opacity:.85}
+  code{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:6px}
+</style>
+</head>
+<body>
+
+<h1>Preview / Test Bench</h1>
+
+<section class="panel">
+  <h2>Connexion (pour tester openedDays)</h2>
+  <div class="topbar">
+    <input id="email" placeholder="email admin" />
+    <input id="password" type="password" placeholder="password" />
+    <button class="btn primary" id="loginBtn">Login</button>
+    <button class="btn secondary" id="logoutBtn">Logout</button>
+    <span class="chip" id="authState">Non connecté</span>
+  </div>
+  <p class="muted" style="margin:8px 0 0;">
+    Si tu es déjà connecté via <code>admin.html</code>, ici ça sera connecté automatiquement (même navigateur).
+  </p>
+</section>
+
+<section class="panel">
+  <h2>Chargement calendrier</h2>
+  <div class="topbar">
+    <input id="calendarId" placeholder="calendarId (ex: ramadan-test-2026)" />
+    <button class="btn primary" id="loadBtn">Charger</button>
+    <button class="btn danger" id="resetBtn">Reset openedDays</button>
+
+    <span class="chip" id="docState">Doc: —</span>
+    <span class="chip" id="daysState">Jours: —</span>
+    <span class="chip" id="openedState">Ouverts: —</span>
+  </div>
+
+  <div class="topbar" style="margin-top:10px;">
+    <label class="muted">Simuler “Aujourd’hui = jour”</label>
+    <input id="simDay" type="number" min="0" max="31" value="1" style="width:120px" />
+    <span class="muted">0 = avant / 31 = après</span>
+    <button class="btn secondary" id="applySimBtn">Appliquer</button>
+    <span class="chip" id="simState">Simulation: Jour 1</span>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Grille</h2>
+  <div id="grid" class="grid"></div>
+</section>
+
+<!-- Modal -->
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="backdrop" id="backdrop"></div>
+  <div class="modalCard" role="document">
+    <button class="btn secondary close" id="closeBtn">✕</button>
+    <h2 id="modalTitle" style="margin:0 0 10px;"></h2>
+
+    <div class="block">
+      <h3 style="margin:0 0 6px;">📖 Verset</h3>
+      <div id="mVerse"></div>
+      <div class="muted" id="mRef" style="margin-top:6px;"></div>
+    </div>
+
+    <div class="block">
+      <h3 style="margin:0 0 6px;">🕊️ Dou’a</h3>
+      <div id="mDua"></div>
+    </div>
+
+    <div class="block">
+      <h3 style="margin:0 0 6px;">🤍 Bonne action</h3>
+      <div id="mAction"></div>
+    </div>
+
+    <div class="block" id="noteBlock" style="display:none;">
+      <h3 style="margin:0 0 6px;">💌 Petit mot</h3>
+      <div id="mNote"></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { auth, db } from "./firebase.js";
+  import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+  import { doc, getDoc, updateDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+
+  // UI
+  const email = document.getElementById("email");
+  const password = document.getElementById("password");
+  const loginBtn = document.getElementById("loginBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const authState = document.getElementById("authState");
+
+  const calendarIdEl = document.getElementById("calendarId");
+  const loadBtn = document.getElementById("loadBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  const simDayEl = document.getElementById("simDay");
+  const applySimBtn = document.getElementById("applySimBtn");
+  const simState = document.getElementById("simState");
+
+  const docState = document.getElementById("docState");
+  const daysState = document.getElementById("daysState");
+  const openedState = document.getElementById("openedState");
+
+  const grid = document.getElementById("grid");
+
+  // modal
+  const modal = document.getElementById("modal");
+  const backdrop = document.getElementById("backdrop");
+  const closeBtn = document.getElementById("closeBtn");
+  const modalTitle = document.getElementById("modalTitle");
+  const mVerse = document.getElementById("mVerse");
+  const mRef = document.getElementById("mRef");
+  const mDua = document.getElementById("mDua");
+  const mAction = document.getElementById("mAction");
+  const noteBlock = document.getElementById("noteBlock");
+  const mNote = document.getElementById("mNote");
+
+  function openModal(day, content){
+    modalTitle.textContent = "Jour " + day;
+    mVerse.textContent = content?.verseText || "";
+    mRef.textContent = content?.verseRef || "";
+    mDua.textContent = content?.duaText || "";
+    mAction.textContent = content?.goodDeedText || "";
+    const note = (content?.note || "").trim();
+    if(note){
+      noteBlock.style.display = "block";
+      mNote.textContent = note;
+    } else {
+      noteBlock.style.display = "none";
+      mNote.textContent = "";
+    }
+    modal.classList.remove("hidden");
+  }
+  function closeModal(){ modal.classList.add("hidden"); }
+  backdrop.addEventListener("click", closeModal);
+  closeBtn.addEventListener("click", closeModal);
+
+  // State
+  let currentRef = null;
+  let currentData = null;
+  let simDay = 1;
+
+  function setSimDay(v){
+    simDay = Number(v);
+    simState.textContent = "Simulation: " + (simDay === 0 ? "Avant (0)" : (simDay === 31 ? "Après (31)" : ("Jour " + simDay)));
+  }
+
+  onAuthStateChanged(auth, (user)=>{
+    authState.textContent = user ? ("Connecté: " + user.email) : "Non connecté";
+  });
+
+  loginBtn.addEventListener("click", async ()=>{
+    await signInWithEmailAndPassword(auth, email.value.trim(), password.value);
+  });
+  logoutBtn.addEventListener("click", async ()=>{
+    await signOut(auth);
+  });
+
+  function dayState(day, daysCount, openedDays){
+    // Rattrapage autorisé : tout day <= simDay est accessible
+    if(simDay <= 0) return { label:"Avant", locked:true, kind:"before" };
+    if(simDay >= 31) return { label: openedDays.includes(day) ? "✅ Ouvert" : "📩 Ouvrir", locked:false, kind: openedDays.includes(day) ? "opened" : "openable" };
+
+    if(day > simDay) return { label:"🔒 Bloqué", locked:true, kind:"locked" };
+    if(day === simDay) return { label: openedDays.includes(day) ? "✅ Ouvert" : "✨ Aujourd’hui", locked:false, kind: openedDays.includes(day) ? "opened" : "today" };
+    // day < simDay
+    return { label: openedDays.includes(day) ? "✅ Ouvert" : "📩 Rattraper", locked:false, kind: openedDays.includes(day) ? "opened" : "openable" };
+  }
+
+  function render(){
+    if(!currentData){
+      grid.innerHTML = "";
+      return;
+    }
+    const daysContent = Array.isArray(currentData.daysContent) ? currentData.daysContent : [];
+    const openedDays = Array.isArray(currentData.openedDays) ? currentData.openedDays : [];
+    const startDate = currentData.startDate || "—";
+    const daysCount = Math.max( (daysContent.map(x=>Number(x.day)||0).reduce((a,b)=>Math.max(a,b),0)) || 0, 30 );
+
+    docState.textContent = "Doc: OK (startDate=" + startDate + ")";
+    daysState.textContent = "Jours: " + daysContent.length + " items";
+    openedState.textContent = "Ouverts: " + openedDays.length;
+
+    const byDay = new Map(daysContent.map(x=>[Number(x.day), x]));
+
+    grid.innerHTML = "";
+    for(let d=1; d<=daysCount; d++){
+      const st = dayState(d, daysCount, openedDays);
+      const content = byDay.get(d) || null;
+
+      const card = document.createElement("div");
+      card.className = "day";
+
+      const title = document.createElement("h3");
+      title.textContent = "Jour " + d;
+      card.appendChild(title);
+
+      const badges = document.createElement("div");
+      badges.className = "badgeRow";
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.textContent = st.label;
+      badges.appendChild(chip);
+
+      const hasContent = !!content;
+      const contentChip = document.createElement("span");
+      contentChip.className = "chip";
+      contentChip.textContent = hasContent ? "📄 Contenu OK" : "⚠️ Pas de contenu";
+      badges.appendChild(contentChip);
+
+      card.appendChild(badges);
+
+      const btnRow = document.createElement("div");
+      btnRow.className = "btnRow";
+
+      const btn = document.createElement("button");
+      btn.className = "btn " + (st.locked ? "secondary" : "primary");
+      btn.disabled = st.locked;
+      btn.textContent = st.locked ? "Bloqué" : (openedDays.includes(d) ? "Relire" : "Ouvrir");
+      btn.addEventListener("click", async ()=>{
+        if(st.locked) return;
+
+        // ouvrir modal (même si contenu manquant)
+        openModal(d, content || {
+          verseText: "Contenu non défini",
+          verseRef: "",
+          duaText: "",
+          goodDeedText: "",
+          note: ""
+        });
+
+        // marquer ouvert si pas déjà
+        if(!openedDays.includes(d)){
+          try{
+            await updateDoc(currentRef, { openedDays: arrayUnion(d) });
+            currentData.openedDays = [...openedDays, d];
+            render();
+          }catch(e){
+            alert("Écriture openedDays refusée (règles Firestore) ou pas connecté admin.\n\n" + (e?.message || e));
+          }
+        }
+      });
+
+      btnRow.appendChild(btn);
+      card.appendChild(btnRow);
+
+      grid.appendChild(card);
+    }
+  }
+
+  loadBtn.addEventListener("click", async ()=>{
+    const id = calendarIdEl.value.trim();
+    if(!id){ alert("calendarId manquant"); return; }
+    const ref = doc(db, "calendars", id);
+    const snap = await getDoc(ref);
+    if(!snap.exists()){
+      currentRef = null;
+      currentData = null;
+      docState.textContent = "Doc: introuvable";
+      grid.innerHTML = "";
+      alert("Calendrier introuvable. Vérifie l'ID.");
+      return;
+    }
+    currentRef = ref;
+    currentData = snap.data();
+    render();
+  });
+
+  resetBtn.addEventListener("click", async ()=>{
+    if(!currentRef){ alert("Charge un calendrier d'abord"); return; }
+    try{
+      await updateDoc(currentRef, { openedDays: [] });
+      currentData.openedDays = [];
+      render();
+    }catch(e){
+      alert("Reset refusé (règles Firestore) ou pas connecté admin.\n\n" + (e?.message || e));
+    }
+  });
+
+  applySimBtn.addEventListener("click", ()=>{
+    setSimDay(simDayEl.value);
+    render();
+  });
+
+  // init
+  setSimDay(simDayEl.value);
+</script>
+</body>
+</html>

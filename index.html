@@ -3,12 +3,95 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Calendrier Ramadan (FO)</title>
+  <title>Calendrier de Ramadan</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
+
 <body>
-  <h1>FO — Calendrier Ramadan</h1>
-  <p>Si tu vois ça, le site local marche ✅</p>
+  <header class="hero">
+    <div class="hero__inner">
+      <h1 class="hero__title">✨ Calendrier de Ramadan ✨</h1>
+      <p class="hero__subtitle muted" id="subtitle">—</p>
+
+      <div class="hero__meta">
+        <span class="pill" id="dayInfo">—</span>
+        <span class="pill">Europe/Paris</span>
+        <span class="pill" id="progressText">—</span>
+        <button class="btn btn-secondary hero__cta" id="goTodayBtn" type="button" style="display:none;">
+          Aller à aujourd’hui
+        </button>
+      </div>
+
+      <div class="progressBar" aria-label="Progression">
+        <div class="progressBar__fill" id="progressBarFill" style="width:0%"></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="panel" id="beforePanel" style="display:none;">
+      <h2>⏳ Avant Ramadan</h2>
+      <p id="countdown"></p>
+    </section>
+
+    <section class="panel" id="calendarPanel" style="display:none;">
+      <div id="grid" class="grid"></div>
+    </section>
+  </main>
+
+  <!-- Modal -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal__backdrop" id="backdrop"></div>
+
+    <div class="modal__card" role="document">
+      <div class="modal__top">
+        <div>
+          <h2 id="mTitle" class="modal__title">—</h2>
+          <div class="modal__statusRow">
+            <span class="pill pill-soft" id="mStatus">—</span>
+          </div>
+        </div>
+
+        <button class="iconBtn" id="closeBtn" type="button" aria-label="Fermer">✕</button>
+      </div>
+
+      <div class="modal__content">
+        <article class="block">
+          <div class="block__head">
+            <span class="iconBubble iconBubble--violet">📖</span>
+            <h3 class="block__title">Verset</h3>
+          </div>
+          <div class="block__body" id="mVerse"></div>
+          <div class="block__ref muted" id="mRef"></div>
+        </article>
+
+        <article class="block">
+          <div class="block__head">
+            <span class="iconBubble iconBubble--pink">🕊️</span>
+            <h3 class="block__title">Dou’a</h3>
+          </div>
+          <div class="block__body" id="duaText"></div>
+          <div class="block__ref muted" id="duaRef"></div>
+        </article>
+
+        <article class="block">
+          <div class="block__head">
+            <span class="iconBubble iconBubble--blue">🤍</span>
+            <h3 class="block__title">Bonne action</h3>
+          </div>
+          <div class="block__body" id="mAction"></div>
+        </article>
+
+        <article class="block" id="noteBlock" style="display:none;">
+          <div class="block__head">
+            <span class="iconBubble iconBubble--gold">💌</span>
+            <h3 class="block__title">Petit mot</h3>
+          </div>
+          <div class="block__body" id="mNote"></div>
+        </article>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="app.js"></script>
 </body>
